@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Visszaszámláló</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify_content: space-between; /* Szétnyomja a tartalmat */
+            height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Nincs görgetés */
+            transition: background-color 0.5s ease;
+        }
+
+        /* A fő számláló konténere - kitölti a teret */
+        .timer-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        h1 {
+            color: #555;
+            font-size: 1rem;
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            opacity: 0.7;
+        }
+
+        #display {
+            /* EXTRA NAGY MÉRET */
+            font-size: 35vw; 
+            font-weight: 700;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 20px rgba(0,0,0,0.5);
+            cursor: default;
+            user-select: none;
+        }
+
+        /* Kezelőfelület sávja lent */
+        .controls-bar {
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(5px);
+            width: 100%;
+            padding: 15px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            transition: opacity 0.3s;
+        }
+
+        /* Ha fut az időzítő, elhalványítjuk a vezérlőket, hogy ne zavarjanak */
+        .controls-bar.running {
+            opacity: 0.3;
+        }
+        .controls-bar.running:hover {
+            opacity: 1;
+        }
+
+        /* Kicsi beviteli mezők */
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        input {
+            background-color: #333;
+            border: 1px solid #444;
+            color: white;
+            font-size: 1rem; /* Kicsi betű */
+            padding: 5px;
+            width: 50px; /* Keskeny */
+            text-align: center;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #666;
+        }
+
+        .colon {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #888;
+        }
+
+        /* Kicsi gombok */
+        button {
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        #btn-start { background-color: #2e7d32; color: white; } /* Sötétebb zöld */
+        #btn-stop { background-color: #ef6c00; color: white; } /* Sötétebb narancs */
+        #btn-reset { background-color: #1565c0; color: white; } /* Sötétebb kék */
+        
+        #btn-color {
+            background-color: transparent;
+            border: 1px solid #555;
+            color: #aaa;
+        }
+        #btn-color:hover {
+            background-color: #333;
+            color: white;
+        }
+
+        button:disabled {
+            background-color: #333 !important;
+            color: #555 !important;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* OPTIMALIZÁLT ANIMÁCIÓK */
+        
+        /* Zöld pulzálás (Lágy) */
+        @keyframes pulse-green {
+            0% { background-color: #1a1a1a; box-shadow: inset 0 0 0 0 rgba(76, 175, 80, 0); }
+            50% { background-color: #1b3a1b; box-shadow: inset 0 0 100px 0 rgba(76, 175, 80, 0.2); }
+            100% { background-color: #1a1a1a; box-shadow: inset 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        /* Piros pulzálás (Erőteljesebb) */
+        @keyframes pulse-red {
+            0% { background-color: #1a1a1a; }
+            50% { background-color: #4a0d0d; } /* Mélyvörös háttér */
+            100% { background-color: #1a1a1a; }
+        }
+
+        .blinking-green {
+            animation: pulse-green 2s infinite ease-in-out; /* Lassabb, nyugodtabb */
+        }
+
+        .blinking-red {
+            animation: pulse-red 0.8s infinite ease-in-out; /* Gyorsabb, sürgető */
+        }
+        
+        /* Amikor pirosban villog, a szám legyen kicsit pirosas is a jobb hatásért */
+        .blinking-red #display {
+            color: #ffcccc;
+            text-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
+        }
+
+        .blinking-green #display {
+            color: #e8f5e9;
+            text-shadow: 0 0 30px rgba(76, 175, 80, 0.6);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="timer-container">
+        <h1>Visszaszámláló</h1>
+        <div id="display">00:00</div>
+    </div>
+
+    <div class="controls-bar" id="controls">
+        <!-- Beviteli mezők -->
+        <div class="input-group">
+            <input type="number" id="min" value="0" min="0" placeholder="00">
+            <span class="colon">:</span>
+            <input type="number" id="sec" value="0" min="0" placeholder="00">
+        </div>
+
+        <!-- Gombok -->
+        <button id="btn-start" onclick="startTimer()">Start</button>
+        <button id="btn-stop" onclick="stopTimer()" disabled>Stop</button>
+        <button id="btn-reset" onclick="resetTimer()">Reset</button>
+        
+        <!-- Színváltó -->
+        <button id="btn-color" onclick="changeColor()" title="Háttérszín váltása">🎨</button>
+    </div>
+
+    <script>
+        let timerInterval;
+        let timeLeft = 0;
+        let isRunning = false;
+        const defaultColor = "#1a1a1a";
+        let currentColor = defaultColor;
+
+        const display = document.getElementById('display');
+        const minInput = document.getElementById('min');
+        const secInput = document.getElementById('sec');
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+        const controlsBar = document.getElementById('controls');
+        const body = document.body;
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+
+            if (timeLeft === 0) {
+                const mins = parseInt(minInput.value) || 0;
+                const secs = parseInt(secInput.value) || 0;
+                timeLeft = mins * 60 + secs;
+            }
+
+            if (timeLeft <= 0) {
+                alert("Kérlek adj meg érvényes időt!");
+                return;
+            }
+
+            isRunning = true;
+            toggleInputs(true);
+            btnStart.disabled = true;
+            btnStop.disabled = false;
+            controlsBar.classList.add('running'); // Elhalványítja a lenti sávot
+
+            updateDisplay(); 
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                    handleBlinking();
+                } else {
+                    finishTimer();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            isRunning = false;
+            clearInterval(timerInterval);
+            stopBlinking();
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+            controlsBar.classList.remove('running');
+        }
+
+        function resetTimer() {
+            stopTimer();
+            timeLeft = 0;
+            display.innerText = "00:00";
+            toggleInputs(false);
+            minInput.value = 0;
+            secInput.value = 0;
+            body.style.backgroundColor = currentColor;
+        }
+
+        function finishTimer() {
+            stopTimer();
+            display.innerText = "00:00";
+            // Egy kis késleltetés, hogy a 00:00 megjelenjen a riasztás előtt
+            setTimeout(() => alert("Lejárt az idő!"), 100);
+            body.style.backgroundColor = currentColor;
+        }
+
+        function updateDisplay() {
+            display.innerText = formatTime(timeLeft);
+        }
+
+        function handleBlinking() {
+            body.classList.remove('blinking-green', 'blinking-red');
+
+            // 60-55 mp: Lágy zöld pulzálás
+            if (timeLeft <= 60 && timeLeft > 55) {
+                body.classList.add('blinking-green');
+            }
+            // 10-0 mp: Sürgető piros pulzálás
+            else if (timeLeft <= 10 && timeLeft > 0) {
+                body.classList.add('blinking-red');
+            }
+            else {
+                body.style.backgroundColor = currentColor;
+            }
+        }
+
+        function stopBlinking() {
+            body.classList.remove('blinking-green', 'blinking-red');
+            body.style.backgroundColor = currentColor;
+        }
+
+        function toggleInputs(disabled) {
+            minInput.disabled = disabled;
+            secInput.disabled = disabled;
+        }
+
+        function changeColor() {
+            const colors = ["#1a1a1a", "#0d47a1", "#004d40", "#3e2723", "#263238"];
+            let nextIndex = colors.indexOf(currentColor) + 1;
+            if (nextIndex >= colors.length) nextIndex = 0;
+            
+            currentColor = colors[nextIndex];
+            body.style.backgroundColor = currentColor;
+        }
+    </script>
+</body>
+</html>
