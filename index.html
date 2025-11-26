@@ -259,8 +259,34 @@
         function finishTimer() {
             stopTimer();
             display.innerText = "00:00";
+            playBeep();
             setTimeout(() => alert("Lejárt az idő!"), 100);
             body.style.backgroundColor = currentColor;
+        }
+
+        function playBeep() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            
+            const audioCtx = new AudioContext();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 880; 
+            
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.5);
+            
+            oscillator.onended = () => {
+                audioCtx.close();
+            };
         }
 
         function updateDisplay() {
